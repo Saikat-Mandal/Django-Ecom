@@ -60,27 +60,44 @@ class CustomerAdmin(admin.ModelAdmin):
         return super().get_queryset(request).annotate(
             orders_count=Count('order')
         ) 
+    
+
+# inline order item class 
+class OrderItemInline(admin.StackedInline):
+    model = models.OrderItem
+    extra = 0
+
 
 # order 
 @admin.register(models.Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ['id' , 'placed_at' , 'customer']
+    inlines = [OrderItemInline]
 
+    
 # product 
 @admin.register(models.Product)
 class ProductAdmin(admin.ModelAdmin):
+    actions =['clear_inventory']
     list_display = ['title' , 'unit_price' , 'inventory_status' , 'collection_title']
     list_editable = ['unit_price']
     list_per_page = 10
-    list_filter = ['collection' , 'last_update' , InventoryFilter]
+    list_filter = ['collection' , 'last_update' , InventoryFilter] #filter
     list_select_related = ['collection']
 
-    def collection_title(self , product ):
+    def collection_title(self , product ): #a new field
         return product.collection.title
 
-    @admin.display(ordering='inventory')
+    @admin.display(ordering='inventory') #ordering 
     def inventory_status(self,product):
         if product.inventory < 10:
             return 'Low'
         return 'OK'
-            
+    
+    @admin.action(description='Clear inventory')
+    def clear_inventory(self , request , queryset):
+        updated_count = queryset.update(inventory=0)
+        self.message_user(
+            request,
+            f'{updated_count} products were succesfully updated'
+        )
